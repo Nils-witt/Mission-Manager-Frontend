@@ -10,6 +10,7 @@ import LoginPage from './pages/login/LoginPage.tsx'
 import UsersPage from './pages/users/UsersPage.tsx'
 import TenantsPage from './pages/tenants/TenantsPage.tsx'
 import SecurityGroupsPage from './pages/securityGroups/SecurityGroupsPage.tsx'
+import MissionsPage from './pages/missions/MissionsPage.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -18,7 +19,14 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route element={<Layout />}>
-          <Route path="/" element={<App />} />
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <App />
+              </RequireAuth>
+            }
+          />
           <Route
             path="/users"
             element={
@@ -40,6 +48,14 @@ createRoot(document.getElementById('root')!).render(
             element={
               <RequireAuth>
                 <SecurityGroupsPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/missions"
+            element={
+              <RequireAuth>
+                <MissionsPage />
               </RequireAuth>
             }
           />

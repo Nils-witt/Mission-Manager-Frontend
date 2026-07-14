@@ -11,6 +11,7 @@ export interface UserResponse {
   primaryTenantId: string | null
   tenantIds: string[]
   securityGroupIds: string[]
+  permissions: Permission[]
 }
 
 export interface UserRequest {
@@ -30,6 +31,7 @@ export interface TenantResponse {
   createdAt: string
   updatedAt: string
   name: string
+  permissions: Permission[]
 }
 
 export interface TenantRequest {
@@ -38,13 +40,63 @@ export interface TenantRequest {
 
 export type Permission = 'VIEW' | 'EDIT' | 'CREATE' | 'DELETE' | 'ADMIN'
 
+export interface MissionResponse {
+  id: string
+  createdAt: string
+  updatedAt: string
+  name: string
+  tenantId: string
+  startTime: string | null
+  endTime: string | null
+  latitude: number | null
+  longitude: number | null
+  streetAddress: string | null
+  permissions: Permission[]
+}
+
+export interface MissionRequest {
+  name: string
+  tenantId: string
+  startTime: string | null
+  endTime: string | null
+  latitude: number | null
+  longitude: number | null
+  streetAddress: string | null
+}
+
+export type SecurityRoleType =
+  | 'MAPOVERLAY'
+  | 'MAPBASELAYER'
+  | 'USER'
+  | 'MAPGROUP'
+  | 'SECURITYGROUP'
+  | 'UNIT'
+  | 'MAPITEM'
+  | 'GLOBAL'
+  | 'PHOTO'
+  | 'MISSIONGROUP'
+  | 'MISSION'
+  | 'PATIENT'
+  | 'UHS'
+  | 'AUDITLOG'
+  | 'EMAIL'
+  | 'QUALIFICATION'
+  | 'POSITION'
+
+export type SecurityRoleScope = Permission
+
+export interface SecurityRole {
+  type: SecurityRoleType
+  scope: SecurityRoleScope
+}
+
 export interface SecurityGroupResponse {
   id: string
   createdAt: string
   updatedAt: string
   name: string
   ssoGroupName: string
-  roles: string[]
+  roles: SecurityRole[]
   builtIn: boolean
   permissions: Permission[]
 }
@@ -52,7 +104,7 @@ export interface SecurityGroupResponse {
 export interface SecurityGroupRequest {
   name: string
   ssoGroupName: string
-  roles: string[]
+  roles: SecurityRole[]
 }
 
 export interface LoginRequest {

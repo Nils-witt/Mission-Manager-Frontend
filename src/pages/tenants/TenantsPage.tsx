@@ -22,7 +22,8 @@ import DialogActions from '@mui/material/DialogActions'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { ApiError } from '../../api/client'
+import { ApiError, ApiUnavailableError } from '../../api/client'
+import { canCreateAny, hasPermission } from '../../api/permissions'
 import { createTenant, deleteTenant, listTenants, updateTenant } from '../../api/tenants'
 import type { TenantRequest, TenantResponse } from '../../api/types'
 import TenantFormDialog from './TenantFormDialog'
@@ -107,9 +108,11 @@ function TenantsPage() {
         <Typography variant="h4" component="h1">
           Tenants
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
-          Add Tenant
-        </Button>
+        {canCreateAny(tenants) && (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
+            Add Tenant
+          </Button>
+        )}
       </Stack>
 
       {loading ? (
@@ -130,12 +133,16 @@ function TenantsPage() {
                 <TableRow key={tenant.id} hover>
                   <TableCell>{tenant.name}</TableCell>
                   <TableCell align="right">
-                    <IconButton aria-label="edit" onClick={() => openEditForm(tenant)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton aria-label="delete" onClick={() => setDeletingTenant(tenant)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
+                    {hasPermission(tenant.permissions, 'EDIT') && (
+                      <IconButton aria-label="edit" onClick={() => openEditForm(tenant)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                    {hasPermission(tenant.permissions, 'DELETE') && (
+                      <IconButton aria-label="delete" onClick={() => setDeletingTenant(tenant)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -188,6 +195,9 @@ function TenantsPage() {
 }
 
 function describeError(err: unknown): string {
+  if (err instanceof ApiUnavailableError) {
+    return err.message
+  }
   if (err instanceof ApiError) {
     if (err.status === 401) {
       return 'Your session expired. Redirecting to sign in…'
@@ -197,7 +207,7 @@ function describeError(err: unknown): string {
     }
     return `Request failed (${err.status}): ${err.message}`
   }
-  return 'Something went wrong. Is the API running at http://localhost:8080?'
+  return 'Something went wrong.'
 }
 
 export default TenantsPage

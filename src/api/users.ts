@@ -5,6 +5,10 @@ export function listUsers() {
   return apiClient.get<UserResponse[]>('/api/users')
 }
 
+export function getCurrentUser() {
+  return apiClient.get<UserResponse>('/api/users/me')
+}
+
 export function createUser(user: UserRequest) {
   return apiClient.post<UserResponse>('/api/users', user)
 }

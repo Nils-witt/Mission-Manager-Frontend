@@ -9,7 +9,7 @@ import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 import Alert from '@mui/material/Alert'
 import { login } from '../../api/auth'
-import { ApiError } from '../../api/client'
+import { ApiError, ApiUnavailableError } from '../../api/client'
 
 function LoginPage() {
   const [username, setUsername] = useState('')
@@ -78,13 +78,16 @@ function LoginPage() {
 }
 
 function describeError(err: unknown): string {
+  if (err instanceof ApiUnavailableError) {
+    return err.message
+  }
   if (err instanceof ApiError) {
     if (err.status === 401 || err.status === 400) {
       return 'Invalid username or password.'
     }
     return `Login failed (${err.status}).`
   }
-  return 'Something went wrong. Is the API running at http://localhost:8080?'
+  return 'Something went wrong.'
 }
 
 export default LoginPage

@@ -1,8 +1,12 @@
 import { apiClient } from './client'
-import type { SecurityGroupRequest, SecurityGroupResponse } from './types'
+import type { SecurityGroupRequest, SecurityGroupResponse, SecurityRole } from './types'
 
 export function listSecurityGroups() {
   return apiClient.get<SecurityGroupResponse[]>('/api/security-groups')
+}
+
+export function listAvailableSecurityRoles() {
+  return apiClient.get<SecurityRole[]>('/api/security-groups/roles')
 }
 
 export function createSecurityGroup(group: SecurityGroupRequest) {

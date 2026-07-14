@@ -11,7 +11,6 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import IconButton from '@mui/material/IconButton'
-import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Snackbar from '@mui/material/Snackbar'
@@ -24,41 +23,29 @@ import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { ApiError, ApiUnavailableError } from '../../api/client'
-import { hasPermission } from '../../api/permissions'
-import { createUser, deleteUser, listUsers, updateUser } from '../../api/users'
+import { canCreateAny, hasPermission } from '../../api/permissions'
+import { createMission, deleteMission, listMissions, updateMission } from '../../api/missions'
 import { listTenants } from '../../api/tenants'
-import { listSecurityGroups } from '../../api/securityGroups'
-import type {
-  SecurityGroupResponse,
-  TenantResponse,
-  UserRequest,
-  UserResponse,
-} from '../../api/types'
-import UserFormDialog from './UserFormDialog'
+import type { MissionRequest, MissionResponse, TenantResponse } from '../../api/types'
+import MissionFormDialog from './MissionFormDialog'
 
-function UsersPage() {
-  const [users, setUsers] = useState<UserResponse[]>([])
+function MissionsPage() {
+  const [missions, setMissions] = useState<MissionResponse[]>([])
   const [tenants, setTenants] = useState<TenantResponse[]>([])
-  const [securityGroups, setSecurityGroups] = useState<SecurityGroupResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const [formOpen, setFormOpen] = useState(false)
   const [formKey, setFormKey] = useState(0)
-  const [editingUser, setEditingUser] = useState<UserResponse | null>(null)
-  const [deletingUser, setDeletingUser] = useState<UserResponse | null>(null)
+  const [editingMission, setEditingMission] = useState<MissionResponse | null>(null)
+  const [deletingMission, setDeletingMission] = useState<MissionResponse | null>(null)
 
   const loadData = useCallback(async () => {
     try {
-      const [usersData, tenantsData, securityGroupsData] = await Promise.all([
-        listUsers(),
-        listTenants(),
-        listSecurityGroups(),
-      ])
-      setUsers(usersData)
+      const [missionsData, tenantsData] = await Promise.all([listMissions(), listTenants()])
+      setMissions(missionsData)
       setTenants(tenantsData)
-      setSecurityGroups(securityGroupsData)
       setError(null)
     } catch (err) {
       setError(describeError(err))
@@ -73,28 +60,29 @@ function UsersPage() {
     loadData()
   }, [loadData])
 
-  const tenantName = (id: string | null) => tenants.find((t) => t.id === id)?.name ?? '—'
+  const tenantName = (tenantId: string) =>
+    tenants.find((tenant) => tenant.id === tenantId)?.name ?? '—'
 
   const openCreateForm = () => {
-    setEditingUser(null)
+    setEditingMission(null)
     setFormKey((key) => key + 1)
     setFormOpen(true)
   }
 
-  const openEditForm = (user: UserResponse) => {
-    setEditingUser(user)
+  const openEditForm = (mission: MissionResponse) => {
+    setEditingMission(mission)
     setFormKey((key) => key + 1)
     setFormOpen(true)
   }
 
-  const handleSubmit = async (values: UserRequest) => {
+  const handleSubmit = async (values: MissionRequest) => {
     setSubmitting(true)
     setError(null)
     try {
-      if (editingUser) {
-        await updateUser(editingUser.id, values)
+      if (editingMission) {
+        await updateMission(editingMission.id, values)
       } else {
-        await createUser(values)
+        await createMission(values)
       }
       setFormOpen(false)
       await loadData()
@@ -106,12 +94,12 @@ function UsersPage() {
   }
 
   const handleDelete = async () => {
-    if (!deletingUser) return
+    if (!deletingMission) return
     setSubmitting(true)
     setError(null)
     try {
-      await deleteUser(deletingUser.id)
-      setDeletingUser(null)
+      await deleteMission(deletingMission.id)
+      setDeletingMission(null)
       await loadData()
     } catch (err) {
       setError(describeError(err))
@@ -124,11 +112,13 @@ function UsersPage() {
     <Container sx={{ py: 4 }}>
       <Stack direction="row" sx={{ mb: 3, justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h4" component="h1">
-          Users
+          Missions
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
-          Add User
-        </Button>
+        {canCreateAny(missions) && (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
+            Add Mission
+          </Button>
+        )}
       </Stack>
 
       {loading ? (
@@ -140,51 +130,40 @@ function UsersPage() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Username</TableCell>
                 <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Primary tenant</TableCell>
-                <TableCell>Status</TableCell>
+                <TableCell>Tenant</TableCell>
+                <TableCell>Start</TableCell>
+                <TableCell>End</TableCell>
+                <TableCell>Address</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id} hover>
-                  <TableCell>{user.username}</TableCell>
-                  <TableCell>
-                    {user.firstName} {user.lastName}
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{tenantName(user.primaryTenantId)}</TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={1}>
-                      <Chip
-                        label={user.enabled ? 'Enabled' : 'Disabled'}
-                        color={user.enabled ? 'success' : 'default'}
-                        size="small"
-                      />
-                      {user.locked && <Chip label="Locked" color="warning" size="small" />}
-                    </Stack>
-                  </TableCell>
+              {missions.map((mission) => (
+                <TableRow key={mission.id} hover>
+                  <TableCell>{mission.name}</TableCell>
+                  <TableCell>{tenantName(mission.tenantId)}</TableCell>
+                  <TableCell>{formatDateTime(mission.startTime)}</TableCell>
+                  <TableCell>{formatDateTime(mission.endTime)}</TableCell>
+                  <TableCell>{mission.streetAddress || '—'}</TableCell>
                   <TableCell align="right">
-                    {hasPermission(user.permissions, 'EDIT') && (
-                      <IconButton aria-label="edit" onClick={() => openEditForm(user)}>
+                    {hasPermission(mission.permissions, 'EDIT') && (
+                      <IconButton aria-label="edit" onClick={() => openEditForm(mission)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
                     )}
-                    {hasPermission(user.permissions, 'DELETE') && (
-                      <IconButton aria-label="delete" onClick={() => setDeletingUser(user)}>
+                    {hasPermission(mission.permissions, 'DELETE') && (
+                      <IconButton aria-label="delete" onClick={() => setDeletingMission(mission)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
-              {users.length === 0 && (
+              {missions.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} align="center">
-                    No users found.
+                    No missions found.
                   </TableCell>
                 </TableRow>
               )}
@@ -193,27 +172,26 @@ function UsersPage() {
         </TableContainer>
       )}
 
-      <UserFormDialog
+      <MissionFormDialog
         key={formKey}
         open={formOpen}
-        user={editingUser}
+        mission={editingMission}
         tenants={tenants}
-        securityGroups={securityGroups}
         submitting={submitting}
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
       />
 
-      <Dialog open={deletingUser !== null} onClose={() => setDeletingUser(null)}>
-        <DialogTitle>Delete user</DialogTitle>
+      <Dialog open={deletingMission !== null} onClose={() => setDeletingMission(null)}>
+        <DialogTitle>Delete mission</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete <strong>{deletingUser?.username}</strong>? This cannot
+            Are you sure you want to delete <strong>{deletingMission?.name}</strong>? This cannot
             be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeletingUser(null)} disabled={submitting}>
+          <Button onClick={() => setDeletingMission(null)} disabled={submitting}>
             Cancel
           </Button>
           <Button onClick={handleDelete} color="error" variant="contained" disabled={submitting}>
@@ -229,6 +207,11 @@ function UsersPage() {
       </Snackbar>
     </Container>
   )
+}
+
+function formatDateTime(value: string | null): string {
+  if (!value) return '—'
+  return new Date(value).toLocaleString()
 }
 
 function describeError(err: unknown): string {
@@ -247,4 +230,4 @@ function describeError(err: unknown): string {
   return 'Something went wrong.'
 }
 
-export default UsersPage
+export default MissionsPage

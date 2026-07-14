@@ -32,7 +32,7 @@ export interface AppBarNamedAction {
 }
 
 function ApplicationAppBar(props: ApplicationAppBarProps) {
-  const { username } = useAuth()
+  const { displayName } = useAuth()
   const navigate = useNavigate()
 
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null)
@@ -168,7 +168,7 @@ function ApplicationAppBar(props: ApplicationAppBarProps) {
               onClose={handleCloseUserMenu}
             >
               <MenuItem disabled>
-                <Typography sx={{ textAlign: 'center' }}>{username ?? 'Guest'}</Typography>
+                <Typography sx={{ textAlign: 'center' }}>{displayName ?? 'Guest'}</Typography>
               </MenuItem>
               {props.profileActions.map((action) => (
                 <MenuItem

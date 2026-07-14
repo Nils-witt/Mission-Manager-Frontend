@@ -11,6 +11,12 @@ export class ApiError extends Error {
   }
 }
 
+export class ApiUnavailableError extends Error {
+  constructor() {
+    super(`Unable to reach the API at ${API_BASE_URL}.`)
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken()
   const headers = new Headers(init.headers)
@@ -19,7 +25,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers })
+  } catch {
+    throw new ApiUnavailableError()
+  }
 
   if (!response.ok) {
     if (response.status === 401) {

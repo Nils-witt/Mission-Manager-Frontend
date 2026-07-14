@@ -25,18 +25,22 @@ import DialogActions from '@mui/material/DialogActions'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { ApiError } from '../../api/client'
+import { ApiError, ApiUnavailableError } from '../../api/client'
+import { canCreateAny, hasPermission } from '../../api/permissions'
 import {
   createSecurityGroup,
   deleteSecurityGroup,
+  listAvailableSecurityRoles,
   listSecurityGroups,
   updateSecurityGroup,
 } from '../../api/securityGroups'
-import type { SecurityGroupRequest, SecurityGroupResponse } from '../../api/types'
+import type { SecurityGroupRequest, SecurityGroupResponse, SecurityRole } from '../../api/types'
 import SecurityGroupFormDialog from './SecurityGroupFormDialog'
+import { formatSecurityRole } from './securityRoles'
 
 function SecurityGroupsPage() {
   const [groups, setGroups] = useState<SecurityGroupResponse[]>([])
+  const [availableRoles, setAvailableRoles] = useState<SecurityRole[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -48,8 +52,12 @@ function SecurityGroupsPage() {
 
   const loadData = useCallback(async () => {
     try {
-      const groupsData = await listSecurityGroups()
+      const [groupsData, availableRolesData] = await Promise.all([
+        listSecurityGroups(),
+        listAvailableSecurityRoles(),
+      ])
       setGroups(groupsData)
+      setAvailableRoles(availableRolesData)
       setError(null)
     } catch (err) {
       setError(describeError(err))
@@ -115,9 +123,11 @@ function SecurityGroupsPage() {
         <Typography variant="h4" component="h1">
           Security Groups
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
-          Add Security Group
-        </Button>
+        {canCreateAny(groups) && (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
+            Add Security Group
+          </Button>
+        )}
       </Stack>
 
       {loading ? (
@@ -151,7 +161,11 @@ function SecurityGroupsPage() {
                     ) : (
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                         {group.roles.slice(0, 3).map((role) => (
-                          <Chip key={role} label={role} size="small" />
+                          <Chip
+                            key={formatSecurityRole(role)}
+                            label={formatSecurityRole(role)}
+                            size="small"
+                          />
                         ))}
                         {group.roles.length > 3 && (
                           <Chip label={`+${group.roles.length - 3} more`} size="small" />
@@ -160,20 +174,24 @@ function SecurityGroupsPage() {
                     )}
                   </TableCell>
                   <TableCell align="right">
-                    <IconButton aria-label="edit" onClick={() => openEditForm(group)}>
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <Tooltip title={group.builtIn ? 'Built-in groups cannot be deleted' : ''}>
-                      <span>
-                        <IconButton
-                          aria-label="delete"
-                          disabled={group.builtIn}
-                          onClick={() => setDeletingGroup(group)}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
+                    {hasPermission(group.permissions, 'EDIT') && (
+                      <IconButton aria-label="edit" onClick={() => openEditForm(group)}>
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                    {hasPermission(group.permissions, 'DELETE') && (
+                      <Tooltip title={group.builtIn ? 'Built-in groups cannot be deleted' : ''}>
+                        <span>
+                          <IconButton
+                            aria-label="delete"
+                            disabled={group.builtIn}
+                            onClick={() => setDeletingGroup(group)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -193,6 +211,7 @@ function SecurityGroupsPage() {
         key={formKey}
         open={formOpen}
         group={editingGroup}
+        availableRoles={availableRoles}
         submitting={submitting}
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
@@ -226,6 +245,9 @@ function SecurityGroupsPage() {
 }
 
 function describeError(err: unknown): string {
+  if (err instanceof ApiUnavailableError) {
+    return err.message
+  }
   if (err instanceof ApiError) {
     if (err.status === 401) {
       return 'Your session expired. Redirecting to sign in…'
@@ -235,7 +257,7 @@ function describeError(err: unknown): string {
     }
     return `Request failed (${err.status}): ${err.message}`
   }
-  return 'Something went wrong. Is the API running at http://localhost:8080?'
+  return 'Something went wrong.'
 }
 
 export default SecurityGroupsPage
