@@ -23,25 +23,25 @@ import DialogActions from '@mui/material/DialogActions'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import SecurityIcon from '@mui/icons-material/Security'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { ApiError, ApiUnavailableError } from '../../api/client'
 import { canCreateAny, hasPermission } from '../../api/permissions'
-import { deleteTenant, listTenants } from '../../api/tenants'
-import type { TenantResponse } from '../../api/types'
+import { deleteQualificationType, listQualificationTypes } from '../../api/qualificationTypes'
+import type { QualificationTypeResponse } from '../../api/types'
 
-function TenantsPage() {
+function QualificationTypesPage() {
   const navigate = useNavigate()
-  const [tenants, setTenants] = useState<TenantResponse[]>([])
+  const [types, setTypes] = useState<QualificationTypeResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const [deletingTenant, setDeletingTenant] = useState<TenantResponse | null>(null)
+  const [deletingType, setDeletingType] = useState<QualificationTypeResponse | null>(null)
 
   const loadData = useCallback(async () => {
     try {
-      const tenantsData = await listTenants()
-      setTenants(tenantsData)
+      const typesData = await listQualificationTypes()
+      setTypes(typesData)
       setError(null)
     } catch (err) {
       setError(describeError(err))
@@ -57,12 +57,12 @@ function TenantsPage() {
   }, [loadData])
 
   const handleDelete = async () => {
-    if (!deletingTenant) return
+    if (!deletingType) return
     setSubmitting(true)
     setError(null)
     try {
-      await deleteTenant(deletingTenant.id)
-      setDeletingTenant(null)
+      await deleteQualificationType(deletingType.id)
+      setDeletingType(null)
       await loadData()
     } catch (err) {
       setError(describeError(err))
@@ -73,13 +73,20 @@ function TenantsPage() {
 
   return (
     <Container sx={{ py: 4 }}>
-      <Stack direction="row" sx={{ mb: 3, justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
-          Tenants
+      <Stack direction="row" spacing={1} sx={{ mb: 3, alignItems: 'center' }}>
+        <IconButton aria-label="back" onClick={() => navigate('/qualifications')}>
+          <ArrowBackIcon />
+        </IconButton>
+        <Typography variant="h4" component="h1" sx={{ flexGrow: 1 }}>
+          Qualification Types
         </Typography>
-        {canCreateAny(tenants) && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/tenants/new')}>
-            Add Tenant
+        {canCreateAny(types) && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/qualification-types/new')}
+          >
+            Add Type
           </Button>
         )}
       </Stack>
@@ -98,36 +105,30 @@ function TenantsPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {tenants.map((tenant) => (
-                <TableRow key={tenant.id} hover>
-                  <TableCell>{tenant.name}</TableCell>
+              {types.map((type) => (
+                <TableRow key={type.id} hover>
+                  <TableCell>{type.name}</TableCell>
                   <TableCell align="right">
-                    <IconButton
-                      aria-label="security groups"
-                      onClick={() => navigate(`/tenants/${tenant.id}/security-groups`)}
-                    >
-                      <SecurityIcon fontSize="small" />
-                    </IconButton>
-                    {hasPermission(tenant.permissions, 'EDIT') && (
+                    {hasPermission(type.permissions, 'EDIT') && (
                       <IconButton
                         aria-label="edit"
-                        onClick={() => navigate(`/tenants/${tenant.id}/edit`)}
+                        onClick={() => navigate(`/qualification-types/${type.id}/edit`)}
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
                     )}
-                    {hasPermission(tenant.permissions, 'DELETE') && (
-                      <IconButton aria-label="delete" onClick={() => setDeletingTenant(tenant)}>
+                    {hasPermission(type.permissions, 'DELETE') && (
+                      <IconButton aria-label="delete" onClick={() => setDeletingType(type)}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
-              {tenants.length === 0 && (
+              {types.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={2} align="center">
-                    No tenants found.
+                    No qualification types found.
                   </TableCell>
                 </TableRow>
               )}
@@ -136,16 +137,16 @@ function TenantsPage() {
         </TableContainer>
       )}
 
-      <Dialog open={deletingTenant !== null} onClose={() => setDeletingTenant(null)}>
-        <DialogTitle>Delete tenant</DialogTitle>
+      <Dialog open={deletingType !== null} onClose={() => setDeletingType(null)}>
+        <DialogTitle>Delete qualification type</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete <strong>{deletingTenant?.name}</strong>? This cannot be
+            Are you sure you want to delete <strong>{deletingType?.name}</strong>? This cannot be
             undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeletingTenant(null)} disabled={submitting}>
+          <Button onClick={() => setDeletingType(null)} disabled={submitting}>
             Cancel
           </Button>
           <Button onClick={handleDelete} color="error" variant="contained" disabled={submitting}>
@@ -179,4 +180,4 @@ function describeError(err: unknown): string {
   return 'Something went wrong.'
 }
 
-export default TenantsPage
+export default QualificationTypesPage

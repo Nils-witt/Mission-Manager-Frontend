@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Container from '@mui/material/Container'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
@@ -22,23 +23,22 @@ import DialogActions from '@mui/material/DialogActions'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import PeopleIcon from '@mui/icons-material/People'
+import BadgeIcon from '@mui/icons-material/Badge'
 import { ApiError, ApiUnavailableError } from '../../api/client'
 import { canCreateAny, hasPermission } from '../../api/permissions'
-import { createMission, deleteMission, listMissions, updateMission } from '../../api/missions'
+import { deleteMission, listMissions } from '../../api/missions'
 import { listTenants } from '../../api/tenants'
-import type { MissionRequest, MissionResponse, TenantResponse } from '../../api/types'
-import MissionFormDialog from './MissionFormDialog'
+import type { MissionResponse, TenantResponse } from '../../api/types'
 
 function MissionsPage() {
+  const navigate = useNavigate()
   const [missions, setMissions] = useState<MissionResponse[]>([])
   const [tenants, setTenants] = useState<TenantResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const [formOpen, setFormOpen] = useState(false)
-  const [formKey, setFormKey] = useState(0)
-  const [editingMission, setEditingMission] = useState<MissionResponse | null>(null)
   const [deletingMission, setDeletingMission] = useState<MissionResponse | null>(null)
 
   const loadData = useCallback(async () => {
@@ -63,36 +63,6 @@ function MissionsPage() {
   const tenantName = (tenantId: string) =>
     tenants.find((tenant) => tenant.id === tenantId)?.name ?? '—'
 
-  const openCreateForm = () => {
-    setEditingMission(null)
-    setFormKey((key) => key + 1)
-    setFormOpen(true)
-  }
-
-  const openEditForm = (mission: MissionResponse) => {
-    setEditingMission(mission)
-    setFormKey((key) => key + 1)
-    setFormOpen(true)
-  }
-
-  const handleSubmit = async (values: MissionRequest) => {
-    setSubmitting(true)
-    setError(null)
-    try {
-      if (editingMission) {
-        await updateMission(editingMission.id, values)
-      } else {
-        await createMission(values)
-      }
-      setFormOpen(false)
-      await loadData()
-    } catch (err) {
-      setError(describeError(err))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   const handleDelete = async () => {
     if (!deletingMission) return
     setSubmitting(true)
@@ -115,7 +85,11 @@ function MissionsPage() {
           Missions
         </Typography>
         {canCreateAny(missions) && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/missions/new')}
+          >
             Add Mission
           </Button>
         )}
@@ -139,27 +113,56 @@ function MissionsPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {missions.map((mission) => (
-                <TableRow key={mission.id} hover>
-                  <TableCell>{mission.name}</TableCell>
-                  <TableCell>{tenantName(mission.tenantId)}</TableCell>
-                  <TableCell>{formatDateTime(mission.startTime)}</TableCell>
-                  <TableCell>{formatDateTime(mission.endTime)}</TableCell>
-                  <TableCell>{mission.streetAddress || '—'}</TableCell>
-                  <TableCell align="right">
-                    {hasPermission(mission.permissions, 'EDIT') && (
-                      <IconButton aria-label="edit" onClick={() => openEditForm(mission)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                    {hasPermission(mission.permissions, 'DELETE') && (
-                      <IconButton aria-label="delete" onClick={() => setDeletingMission(mission)}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {missions
+                .sort((a, b) => b.name.localeCompare(a.name))
+                .map((mission) => (
+                  <TableRow key={mission.id} hover>
+                    <TableCell>
+                      <Button
+                        size="small"
+                        onClick={() => navigate(`/missions/${mission.id}`)}
+                        sx={{ textTransform: 'none', p: 0, minWidth: 0 }}
+                      >
+                        {mission.name}
+                      </Button>
+                    </TableCell>
+                    <TableCell>{tenantName(mission.tenantId)}</TableCell>
+                    <TableCell>{formatDateTime(mission.startTime)}</TableCell>
+                    <TableCell>{formatDateTime(mission.endTime)}</TableCell>
+                    <TableCell>{mission.streetAddress || '—'}</TableCell>
+                    <TableCell align="right">
+                      {hasPermission(mission.permissions, 'EDIT') && (
+                        <IconButton
+                          aria-label="manage positions"
+                          onClick={() => navigate(`/missions/${mission.id}/positions`)}
+                        >
+                          <BadgeIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                      {hasPermission(mission.permissions, 'EDIT') && (
+                        <IconButton
+                          aria-label="manage users"
+                          onClick={() => navigate(`/missions/${mission.id}/users`)}
+                        >
+                          <PeopleIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                      {hasPermission(mission.permissions, 'EDIT') && (
+                        <IconButton
+                          aria-label="edit"
+                          onClick={() => navigate(`/missions/${mission.id}/edit`)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                      {hasPermission(mission.permissions, 'DELETE') && (
+                        <IconButton aria-label="delete" onClick={() => setDeletingMission(mission)}>
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
               {missions.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} align="center">
@@ -172,22 +175,12 @@ function MissionsPage() {
         </TableContainer>
       )}
 
-      <MissionFormDialog
-        key={formKey}
-        open={formOpen}
-        mission={editingMission}
-        tenants={tenants}
-        submitting={submitting}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleSubmit}
-      />
-
       <Dialog open={deletingMission !== null} onClose={() => setDeletingMission(null)}>
         <DialogTitle>Delete mission</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete <strong>{deletingMission?.name}</strong>? This cannot
-            be undone.
+            Are you sure you want to delete <strong>{deletingMission?.name}</strong>? This cannot be
+            undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

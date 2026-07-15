@@ -1,22 +1,28 @@
 import { apiClient } from './client'
-import type { SecurityGroupRequest, SecurityGroupResponse, SecurityRole } from './types'
+import type { PageResponse, SecurityGroupRequest, SecurityGroupResponse, SecurityRole } from './types'
 
-export function listSecurityGroups() {
-  return apiClient.get<SecurityGroupResponse[]>('/api/security-groups')
+export async function listSecurityGroups(tenantId: string) {
+  const page = await apiClient.get<PageResponse<SecurityGroupResponse>>(
+    `/api/tenants/${tenantId}/security-groups`,
+  )
+  return page.content
 }
 
 export function listAvailableSecurityRoles() {
   return apiClient.get<SecurityRole[]>('/api/security-groups/roles')
 }
 
-export function createSecurityGroup(group: SecurityGroupRequest) {
-  return apiClient.post<SecurityGroupResponse>('/api/security-groups', group)
+export function createSecurityGroup(tenantId: string, group: SecurityGroupRequest) {
+  return apiClient.post<SecurityGroupResponse>(`/api/tenants/${tenantId}/security-groups`, group)
 }
 
-export function updateSecurityGroup(id: string, group: SecurityGroupRequest) {
-  return apiClient.put<SecurityGroupResponse>(`/api/security-groups/${id}`, group)
+export function updateSecurityGroup(tenantId: string, id: string, group: SecurityGroupRequest) {
+  return apiClient.put<SecurityGroupResponse>(
+    `/api/tenants/${tenantId}/security-groups/${id}`,
+    group,
+  )
 }
 
-export function deleteSecurityGroup(id: string) {
-  return apiClient.delete(`/api/security-groups/${id}`)
+export function deleteSecurityGroup(tenantId: string, id: string) {
+  return apiClient.delete(`/api/tenants/${tenantId}/security-groups/${id}`)
 }

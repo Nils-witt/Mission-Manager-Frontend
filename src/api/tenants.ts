@@ -1,8 +1,9 @@
 import { apiClient } from './client'
-import type { TenantRequest, TenantResponse } from './types'
+import type { PageResponse, TenantRequest, TenantResponse } from './types'
 
-export function listTenants() {
-  return apiClient.get<TenantResponse[]>('/api/tenants')
+export async function listTenants() {
+  const page = await apiClient.get<PageResponse<TenantResponse>>('/api/tenants')
+  return page.content
 }
 
 export function createTenant(tenant: TenantRequest) {

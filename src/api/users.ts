@@ -1,8 +1,9 @@
 import { apiClient } from './client'
-import type { UserRequest, UserResponse } from './types'
+import type { PageResponse, UserRequest, UserResponse } from './types'
 
-export function listUsers() {
-  return apiClient.get<UserResponse[]>('/api/users')
+export async function listUsers() {
+  const page = await apiClient.get<PageResponse<UserResponse>>('/api/users')
+  return page.content
 }
 
 export function getCurrentUser() {

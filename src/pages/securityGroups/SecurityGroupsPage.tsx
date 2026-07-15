@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import Container from '@mui/material/Container'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import Button from '@mui/material/Button'
+import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
@@ -10,7 +12,6 @@ import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
-import IconButton from '@mui/material/IconButton'
 import Chip from '@mui/material/Chip'
 import Box from '@mui/material/Box'
 import Tooltip from '@mui/material/Tooltip'
@@ -25,46 +26,47 @@ import DialogActions from '@mui/material/DialogActions'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { ApiError, ApiUnavailableError } from '../../api/client'
 import { canCreateAny, hasPermission } from '../../api/permissions'
-import {
-  createSecurityGroup,
-  deleteSecurityGroup,
-  listAvailableSecurityRoles,
-  listSecurityGroups,
-  updateSecurityGroup,
-} from '../../api/securityGroups'
-import type { SecurityGroupRequest, SecurityGroupResponse, SecurityRole } from '../../api/types'
-import SecurityGroupFormDialog from './SecurityGroupFormDialog'
+import { deleteSecurityGroup, listSecurityGroups } from '../../api/securityGroups'
+import { listTenants } from '../../api/tenants'
+import type { SecurityGroupResponse, TenantResponse } from '../../api/types'
 import { formatSecurityRole } from './securityRoles'
 
 function SecurityGroupsPage() {
+  const { tenantId } = useParams<{ tenantId: string }>()
+  const navigate = useNavigate()
+  const [tenant, setTenant] = useState<TenantResponse | null>(null)
   const [groups, setGroups] = useState<SecurityGroupResponse[]>([])
-  const [availableRoles, setAvailableRoles] = useState<SecurityRole[]>([])
   const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const [formOpen, setFormOpen] = useState(false)
-  const [formKey, setFormKey] = useState(0)
-  const [editingGroup, setEditingGroup] = useState<SecurityGroupResponse | null>(null)
   const [deletingGroup, setDeletingGroup] = useState<SecurityGroupResponse | null>(null)
 
   const loadData = useCallback(async () => {
+    if (!tenantId) return
     try {
-      const [groupsData, availableRolesData] = await Promise.all([
-        listSecurityGroups(),
-        listAvailableSecurityRoles(),
+      const [tenantsData, groupsData] = await Promise.all([
+        listTenants(),
+        listSecurityGroups(tenantId),
       ])
+      const foundTenant = tenantsData.find((t) => t.id === tenantId)
+      if (!foundTenant) {
+        setNotFound(true)
+      } else {
+        setTenant(foundTenant)
+      }
       setGroups(groupsData)
-      setAvailableRoles(availableRolesData)
       setError(null)
     } catch (err) {
       setError(describeError(err))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [tenantId])
 
   useEffect(() => {
     // Mount-time fetch; loadData is also reused to refresh after mutations.
@@ -72,42 +74,12 @@ function SecurityGroupsPage() {
     loadData()
   }, [loadData])
 
-  const openCreateForm = () => {
-    setEditingGroup(null)
-    setFormKey((key) => key + 1)
-    setFormOpen(true)
-  }
-
-  const openEditForm = (group: SecurityGroupResponse) => {
-    setEditingGroup(group)
-    setFormKey((key) => key + 1)
-    setFormOpen(true)
-  }
-
-  const handleSubmit = async (values: SecurityGroupRequest) => {
-    setSubmitting(true)
-    setError(null)
-    try {
-      if (editingGroup) {
-        await updateSecurityGroup(editingGroup.id, values)
-      } else {
-        await createSecurityGroup(values)
-      }
-      setFormOpen(false)
-      await loadData()
-    } catch (err) {
-      setError(describeError(err))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   const handleDelete = async () => {
-    if (!deletingGroup) return
+    if (!deletingGroup || !tenantId) return
     setSubmitting(true)
     setError(null)
     try {
-      await deleteSecurityGroup(deletingGroup.id)
+      await deleteSecurityGroup(tenantId, deletingGroup.id)
       setDeletingGroup(null)
       await loadData()
     } catch (err) {
@@ -117,105 +89,122 @@ function SecurityGroupsPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <Container sx={{ py: 4 }}>
+        <Stack sx={{ py: 6, alignItems: 'center' }}>
+          <CircularProgress />
+        </Stack>
+      </Container>
+    )
+  }
+
+  if (notFound) {
+    return (
+      <Container sx={{ py: 4 }}>
+        <Alert severity="error">Tenant not found.</Alert>
+        <Button sx={{ mt: 2 }} onClick={() => navigate('/tenants')}>
+          Back to tenants
+        </Button>
+      </Container>
+    )
+  }
+
   return (
     <Container sx={{ py: 4 }}>
       <Stack direction="row" sx={{ mb: 3, justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h4" component="h1">
-          Security Groups
-        </Typography>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <IconButton aria-label="back" onClick={() => navigate('/tenants')}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h4" component="h1">
+            {tenant?.name} — Security Groups
+          </Typography>
+        </Stack>
         {canCreateAny(groups) && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate(`/tenants/${tenantId}/security-groups/new`)}
+          >
             Add Security Group
           </Button>
         )}
       </Stack>
 
-      {loading ? (
-        <Stack sx={{ py: 6, alignItems: 'center' }}>
-          <CircularProgress />
-        </Stack>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>SSO group</TableCell>
-                <TableCell>Roles</TableCell>
-                <TableCell align="right">Actions</TableCell>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>SSO group</TableCell>
+              <TableCell>Roles</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {groups.map((group) => (
+              <TableRow key={group.id} hover>
+                <TableCell>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <span>{group.name}</span>
+                    {group.builtIn && <Chip label="Built-in" size="small" />}
+                  </Stack>
+                </TableCell>
+                <TableCell>{group.ssoGroupName || '—'}</TableCell>
+                <TableCell>
+                  {group.roles.length === 0 ? (
+                    '—'
+                  ) : (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {group.roles.slice(0, 3).map((role) => (
+                        <Chip
+                          key={formatSecurityRole(role)}
+                          label={formatSecurityRole(role)}
+                          size="small"
+                        />
+                      ))}
+                      {group.roles.length > 3 && (
+                        <Chip label={`+${group.roles.length - 3} more`} size="small" />
+                      )}
+                    </Box>
+                  )}
+                </TableCell>
+                <TableCell align="right">
+                  {hasPermission(group.permissions, 'EDIT') && (
+                    <IconButton
+                      aria-label="edit"
+                      onClick={() => navigate(`/tenants/${tenantId}/security-groups/${group.id}/edit`)}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                  {hasPermission(group.permissions, 'DELETE') && (
+                    <Tooltip title={group.builtIn ? 'Built-in groups cannot be deleted' : ''}>
+                      <span>
+                        <IconButton
+                          aria-label="delete"
+                          disabled={group.builtIn}
+                          onClick={() => setDeletingGroup(group)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {groups.map((group) => (
-                <TableRow key={group.id} hover>
-                  <TableCell>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                      <span>{group.name}</span>
-                      {group.builtIn && <Chip label="Built-in" size="small" />}
-                    </Stack>
-                  </TableCell>
-                  <TableCell>{group.ssoGroupName || '—'}</TableCell>
-                  <TableCell>
-                    {group.roles.length === 0 ? (
-                      '—'
-                    ) : (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {group.roles.slice(0, 3).map((role) => (
-                          <Chip
-                            key={formatSecurityRole(role)}
-                            label={formatSecurityRole(role)}
-                            size="small"
-                          />
-                        ))}
-                        {group.roles.length > 3 && (
-                          <Chip label={`+${group.roles.length - 3} more`} size="small" />
-                        )}
-                      </Box>
-                    )}
-                  </TableCell>
-                  <TableCell align="right">
-                    {hasPermission(group.permissions, 'EDIT') && (
-                      <IconButton aria-label="edit" onClick={() => openEditForm(group)}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                    )}
-                    {hasPermission(group.permissions, 'DELETE') && (
-                      <Tooltip title={group.builtIn ? 'Built-in groups cannot be deleted' : ''}>
-                        <span>
-                          <IconButton
-                            aria-label="delete"
-                            disabled={group.builtIn}
-                            onClick={() => setDeletingGroup(group)}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {groups.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={4} align="center">
-                    No security groups found.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      )}
-
-      <SecurityGroupFormDialog
-        key={formKey}
-        open={formOpen}
-        group={editingGroup}
-        availableRoles={availableRoles}
-        submitting={submitting}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleSubmit}
-      />
+            ))}
+            {groups.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} align="center">
+                  No security groups found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       <Dialog open={deletingGroup !== null} onClose={() => setDeletingGroup(null)}>
         <DialogTitle>Delete security group</DialogTitle>

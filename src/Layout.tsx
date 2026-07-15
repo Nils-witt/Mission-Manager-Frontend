@@ -19,8 +19,8 @@ function Layout() {
           { name: 'Home', link: '/' },
           { name: 'Users', link: '/users' },
           { name: 'Tenants', link: '/tenants' },
-          { name: 'Security Groups', link: '/security-groups' },
           { name: 'Missions', link: '/missions' },
+          { name: 'Qualifications', link: '/qualifications' },
         ]}
         profileActions={[{ name: 'Logout', action: handleLogout }]}
       />

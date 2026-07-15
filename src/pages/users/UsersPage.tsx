@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Container from '@mui/material/Container'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
@@ -25,40 +26,25 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { ApiError, ApiUnavailableError } from '../../api/client'
 import { hasPermission } from '../../api/permissions'
-import { createUser, deleteUser, listUsers, updateUser } from '../../api/users'
+import { deleteUser, listUsers } from '../../api/users'
 import { listTenants } from '../../api/tenants'
-import { listSecurityGroups } from '../../api/securityGroups'
-import type {
-  SecurityGroupResponse,
-  TenantResponse,
-  UserRequest,
-  UserResponse,
-} from '../../api/types'
-import UserFormDialog from './UserFormDialog'
+import type { TenantResponse, UserResponse } from '../../api/types'
 
 function UsersPage() {
+  const navigate = useNavigate()
   const [users, setUsers] = useState<UserResponse[]>([])
   const [tenants, setTenants] = useState<TenantResponse[]>([])
-  const [securityGroups, setSecurityGroups] = useState<SecurityGroupResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const [formOpen, setFormOpen] = useState(false)
-  const [formKey, setFormKey] = useState(0)
-  const [editingUser, setEditingUser] = useState<UserResponse | null>(null)
   const [deletingUser, setDeletingUser] = useState<UserResponse | null>(null)
 
   const loadData = useCallback(async () => {
     try {
-      const [usersData, tenantsData, securityGroupsData] = await Promise.all([
-        listUsers(),
-        listTenants(),
-        listSecurityGroups(),
-      ])
+      const [usersData, tenantsData] = await Promise.all([listUsers(), listTenants()])
       setUsers(usersData)
       setTenants(tenantsData)
-      setSecurityGroups(securityGroupsData)
       setError(null)
     } catch (err) {
       setError(describeError(err))
@@ -74,36 +60,6 @@ function UsersPage() {
   }, [loadData])
 
   const tenantName = (id: string | null) => tenants.find((t) => t.id === id)?.name ?? '—'
-
-  const openCreateForm = () => {
-    setEditingUser(null)
-    setFormKey((key) => key + 1)
-    setFormOpen(true)
-  }
-
-  const openEditForm = (user: UserResponse) => {
-    setEditingUser(user)
-    setFormKey((key) => key + 1)
-    setFormOpen(true)
-  }
-
-  const handleSubmit = async (values: UserRequest) => {
-    setSubmitting(true)
-    setError(null)
-    try {
-      if (editingUser) {
-        await updateUser(editingUser.id, values)
-      } else {
-        await createUser(values)
-      }
-      setFormOpen(false)
-      await loadData()
-    } catch (err) {
-      setError(describeError(err))
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   const handleDelete = async () => {
     if (!deletingUser) return
@@ -126,7 +82,7 @@ function UsersPage() {
         <Typography variant="h4" component="h1">
           Users
         </Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreateForm}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/users/new')}>
           Add User
         </Button>
       </Stack>
@@ -169,7 +125,7 @@ function UsersPage() {
                   </TableCell>
                   <TableCell align="right">
                     {hasPermission(user.permissions, 'EDIT') && (
-                      <IconButton aria-label="edit" onClick={() => openEditForm(user)}>
+                      <IconButton aria-label="edit" onClick={() => navigate(`/users/${user.id}/edit`)}>
                         <EditIcon fontSize="small" />
                       </IconButton>
                     )}
@@ -192,17 +148,6 @@ function UsersPage() {
           </Table>
         </TableContainer>
       )}
-
-      <UserFormDialog
-        key={formKey}
-        open={formOpen}
-        user={editingUser}
-        tenants={tenants}
-        securityGroups={securityGroups}
-        submitting={submitting}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleSubmit}
-      />
 
       <Dialog open={deletingUser !== null} onClose={() => setDeletingUser(null)}>
         <DialogTitle>Delete user</DialogTitle>

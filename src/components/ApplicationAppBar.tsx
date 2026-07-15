@@ -12,8 +12,10 @@ import Button from '@mui/material/Button'
 import Tooltip from '@mui/material/Tooltip'
 import MenuItem from '@mui/material/MenuItem'
 import AdbIcon from '@mui/icons-material/Adb'
+import SearchIcon from '@mui/icons-material/Search'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../api/useAuth'
+import SearchDialog from './SearchDialog'
 
 export type AppBarPage = {
   name: string
@@ -37,6 +39,7 @@ function ApplicationAppBar(props: ApplicationAppBarProps) {
 
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null)
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null)
+  const [searchOpen, setSearchOpen] = React.useState(false)
 
   const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElNav(event.currentTarget)
@@ -145,7 +148,12 @@ function ApplicationAppBar(props: ApplicationAppBarProps) {
               </Button>
             ))}
           </Box>
-          <Box sx={{ flexGrow: 0 }}>
+          <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title="Search">
+              <IconButton onClick={() => setSearchOpen(true)} color="inherit">
+                <SearchIcon />
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Open settings">
               <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                 <Avatar alt="Remy Sharp" src="/static/images/avatar/2.jpg" />
@@ -185,6 +193,7 @@ function ApplicationAppBar(props: ApplicationAppBarProps) {
           </Box>
         </Toolbar>
       </Container>
+      <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
     </AppBar>
   )
 }

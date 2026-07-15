@@ -19,10 +19,10 @@ export interface UserRequest {
   firstName: string
   lastName: string
   email: string
-  password?: string
   enabled: boolean
   locked: boolean
   primaryTenantId: string | null
+  tenantIds: string[]
   securityGroupIds: string[]
 }
 
@@ -39,6 +39,14 @@ export interface TenantRequest {
 }
 
 export type Permission = 'VIEW' | 'EDIT' | 'CREATE' | 'DELETE' | 'ADMIN'
+
+export interface PageResponse<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
 
 export interface MissionResponse {
   id: string
@@ -62,6 +70,53 @@ export interface MissionRequest {
   latitude: number | null
   longitude: number | null
   streetAddress: string | null
+}
+
+export interface MissionPositionResponse {
+  id: string
+  createdAt: string
+  updatedAt: string
+  missionId: string
+  name: string
+  qualificationIds: string[]
+  assignedUserId: string | null
+  assignedUsername: string | null
+  permissions: Permission[]
+}
+
+export interface MissionPositionRequest {
+  name: string
+  qualificationIds: string[]
+  assignedUserId: string | null
+}
+
+export interface QualificationResponse {
+  id: string
+  createdAt: string
+  updatedAt: string
+  name: string
+  typeId: string
+  typeName: string
+  includedQualificationIds: string[]
+  permissions: Permission[]
+}
+
+export interface QualificationRequest {
+  name: string
+  typeId: string
+  includedQualificationIds: string[]
+}
+
+export interface QualificationTypeResponse {
+  id: string
+  createdAt: string
+  updatedAt: string
+  name: string
+  permissions: Permission[]
+}
+
+export interface QualificationTypeRequest {
+  name: string
 }
 
 export type SecurityRoleType =
@@ -95,6 +150,7 @@ export interface SecurityGroupResponse {
   createdAt: string
   updatedAt: string
   name: string
+  tenantId: string
   ssoGroupName: string
   roles: SecurityRole[]
   builtIn: boolean

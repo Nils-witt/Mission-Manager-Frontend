@@ -12,6 +12,8 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import IconButton from '@mui/material/IconButton'
+import Chip from '@mui/material/Chip'
+import Box from '@mui/material/Box'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Snackbar from '@mui/material/Snackbar'
@@ -23,25 +25,27 @@ import DialogActions from '@mui/material/DialogActions'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import SecurityIcon from '@mui/icons-material/Security'
+import CategoryIcon from '@mui/icons-material/Category'
 import { ApiError, ApiUnavailableError } from '../../api/client'
 import { canCreateAny, hasPermission } from '../../api/permissions'
-import { deleteTenant, listTenants } from '../../api/tenants'
-import type { TenantResponse } from '../../api/types'
+import { deleteQualification, listQualifications } from '../../api/qualifications'
+import type { QualificationResponse } from '../../api/types'
 
-function TenantsPage() {
+function QualificationsPage() {
   const navigate = useNavigate()
-  const [tenants, setTenants] = useState<TenantResponse[]>([])
+  const [qualifications, setQualifications] = useState<QualificationResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const [deletingTenant, setDeletingTenant] = useState<TenantResponse | null>(null)
+  const [deletingQualification, setDeletingQualification] = useState<QualificationResponse | null>(
+    null,
+  )
 
   const loadData = useCallback(async () => {
     try {
-      const tenantsData = await listTenants()
-      setTenants(tenantsData)
+      const qualificationsData = await listQualifications()
+      setQualifications(qualificationsData)
       setError(null)
     } catch (err) {
       setError(describeError(err))
@@ -56,13 +60,16 @@ function TenantsPage() {
     loadData()
   }, [loadData])
 
+  const qualificationName = (qualificationId: string) =>
+    qualifications.find((q) => q.id === qualificationId)?.name ?? qualificationId
+
   const handleDelete = async () => {
-    if (!deletingTenant) return
+    if (!deletingQualification) return
     setSubmitting(true)
     setError(null)
     try {
-      await deleteTenant(deletingTenant.id)
-      setDeletingTenant(null)
+      await deleteQualification(deletingQualification.id)
+      setDeletingQualification(null)
       await loadData()
     } catch (err) {
       setError(describeError(err))
@@ -75,13 +82,26 @@ function TenantsPage() {
     <Container sx={{ py: 4 }}>
       <Stack direction="row" sx={{ mb: 3, justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="h4" component="h1">
-          Tenants
+          Qualifications
         </Typography>
-        {canCreateAny(tenants) && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/tenants/new')}>
-            Add Tenant
+        <Stack direction="row" spacing={1}>
+          <Button
+            variant="outlined"
+            startIcon={<CategoryIcon />}
+            onClick={() => navigate('/qualification-types')}
+          >
+            Manage Types
           </Button>
-        )}
+          {canCreateAny(qualifications) && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/qualifications/new')}
+            >
+              Add Qualification
+            </Button>
+          )}
+        </Stack>
       </Stack>
 
       {loading ? (
@@ -94,40 +114,51 @@ function TenantsPage() {
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Includes</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {tenants.map((tenant) => (
-                <TableRow key={tenant.id} hover>
-                  <TableCell>{tenant.name}</TableCell>
+              {qualifications.map((qualification) => (
+                <TableRow key={qualification.id} hover>
+                  <TableCell>{qualification.name}</TableCell>
+                  <TableCell>{qualification.typeName || '—'}</TableCell>
+                  <TableCell>
+                    {qualification.includedQualificationIds.length === 0 ? (
+                      '—'
+                    ) : (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {qualification.includedQualificationIds.map((includedId) => (
+                          <Chip key={includedId} label={qualificationName(includedId)} size="small" />
+                        ))}
+                      </Box>
+                    )}
+                  </TableCell>
                   <TableCell align="right">
-                    <IconButton
-                      aria-label="security groups"
-                      onClick={() => navigate(`/tenants/${tenant.id}/security-groups`)}
-                    >
-                      <SecurityIcon fontSize="small" />
-                    </IconButton>
-                    {hasPermission(tenant.permissions, 'EDIT') && (
+                    {hasPermission(qualification.permissions, 'EDIT') && (
                       <IconButton
                         aria-label="edit"
-                        onClick={() => navigate(`/tenants/${tenant.id}/edit`)}
+                        onClick={() => navigate(`/qualifications/${qualification.id}/edit`)}
                       >
                         <EditIcon fontSize="small" />
                       </IconButton>
                     )}
-                    {hasPermission(tenant.permissions, 'DELETE') && (
-                      <IconButton aria-label="delete" onClick={() => setDeletingTenant(tenant)}>
+                    {hasPermission(qualification.permissions, 'DELETE') && (
+                      <IconButton
+                        aria-label="delete"
+                        onClick={() => setDeletingQualification(qualification)}
+                      >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     )}
                   </TableCell>
                 </TableRow>
               ))}
-              {tenants.length === 0 && (
+              {qualifications.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={2} align="center">
-                    No tenants found.
+                  <TableCell colSpan={4} align="center">
+                    No qualifications found.
                   </TableCell>
                 </TableRow>
               )}
@@ -136,16 +167,16 @@ function TenantsPage() {
         </TableContainer>
       )}
 
-      <Dialog open={deletingTenant !== null} onClose={() => setDeletingTenant(null)}>
-        <DialogTitle>Delete tenant</DialogTitle>
+      <Dialog open={deletingQualification !== null} onClose={() => setDeletingQualification(null)}>
+        <DialogTitle>Delete qualification</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete <strong>{deletingTenant?.name}</strong>? This cannot be
-            undone.
+            Are you sure you want to delete <strong>{deletingQualification?.name}</strong>? This
+            cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeletingTenant(null)} disabled={submitting}>
+          <Button onClick={() => setDeletingQualification(null)} disabled={submitting}>
             Cancel
           </Button>
           <Button onClick={handleDelete} color="error" variant="contained" disabled={submitting}>
@@ -179,4 +210,4 @@ function describeError(err: unknown): string {
   return 'Something went wrong.'
 }
 
-export default TenantsPage
+export default QualificationsPage
