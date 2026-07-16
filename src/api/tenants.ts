@@ -1,9 +1,23 @@
-import { apiClient } from './client'
-import type { PageResponse, TenantRequest, TenantResponse } from './types'
+import { apiClient, toQueryString } from './client'
+import type { PageResponse, Pageable, TenantRequest, TenantResponse } from './types'
 
-export async function listTenants() {
-  const page = await apiClient.get<PageResponse<TenantResponse>>('/api/tenants')
+export interface ListTenantsParams extends Pageable {
+  name?: string
+}
+
+export async function listTenants(params: ListTenantsParams = {}) {
+  const query = toQueryString({
+    name: params.name,
+    page: params.page,
+    size: params.size,
+    sort: params.sort,
+  })
+  const page = await apiClient.get<PageResponse<TenantResponse>>(`/api/tenants${query}`)
   return page.content
+}
+
+export function getTenant(id: string) {
+  return apiClient.get<TenantResponse>(`/api/tenants/${id}`)
 }
 
 export function createTenant(tenant: TenantRequest) {

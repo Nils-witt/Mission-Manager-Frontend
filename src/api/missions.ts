@@ -1,15 +1,34 @@
-import { apiClient } from './client'
+import { apiClient, toQueryString } from './client'
 import type {
+  AssignedUserRequest,
   MissionPositionRequest,
   MissionPositionResponse,
   MissionRequest,
   MissionResponse,
   PageResponse,
-  UserResponse,
+  Pageable,
+  UserMissionAssignmentRequest,
+  UserMissionAssignmentResponse,
 } from './types'
 
-export async function listMissions() {
-  const page = await apiClient.get<PageResponse<MissionResponse>>('/api/missions')
+export interface ListMissionsParams extends Pageable {
+  name?: string
+  tenantId?: string
+  startAfter?: string
+  startBefore?: string
+}
+
+export async function listMissions(params: ListMissionsParams = {}) {
+  const query = toQueryString({
+    name: params.name,
+    tenantId: params.tenantId,
+    startAfter: params.startAfter,
+    startBefore: params.startBefore,
+    page: params.page,
+    size: params.size,
+    sort: params.sort,
+  })
+  const page = await apiClient.get<PageResponse<MissionResponse>>(`/api/missions${query}`)
   return page.content
 }
 
@@ -29,26 +48,52 @@ export function deleteMission(id: string) {
   return apiClient.delete(`/api/missions/${id}`)
 }
 
-export async function listMissionUsers(missionId: string) {
-  const page = await apiClient.get<PageResponse<UserResponse>>(`/api/missions/${missionId}/users`)
+export interface ListMissionUsersParams extends Pageable {
+  userId?: string
+}
+
+export async function listMissionUsers(missionId: string, params: ListMissionUsersParams = {}) {
+  const query = toQueryString({
+    userId: params.userId,
+    page: params.page,
+    size: params.size,
+    sort: params.sort,
+  })
+  const page = await apiClient.get<PageResponse<UserMissionAssignmentResponse>>(
+    `/api/missions/${missionId}/users${query}`,
+  )
   return page.content
 }
 
-export function assignMissionUser(missionId: string, userId: string) {
-  return apiClient.post<void>(`/api/missions/${missionId}/users`, {
-    userId,
-    startTime: new Date().toISOString(),
-    endTime: new Date().toISOString(),
+export function assignMissionUser(missionId: string, assignment: UserMissionAssignmentRequest) {
+  return apiClient.post<UserMissionAssignmentResponse>(
+    `/api/missions/${missionId}/users`,
+    assignment,
+  )
+}
+
+export function unassignMissionUser(missionId: string, id: string) {
+  return apiClient.delete(`/api/missions/${missionId}/users/${id}`)
+}
+
+export interface ListMissionPositionsParams extends Pageable {
+  name?: string
+  assignedUserId?: string
+}
+
+export async function listMissionPositions(
+  missionId: string,
+  params: ListMissionPositionsParams = {},
+) {
+  const query = toQueryString({
+    name: params.name,
+    assignedUserId: params.assignedUserId,
+    page: params.page,
+    size: params.size,
+    sort: params.sort,
   })
-}
-
-export function unassignMissionUser(missionId: string, userId: string) {
-  return apiClient.delete(`/api/missions/${missionId}/users/${userId}`)
-}
-
-export async function listMissionPositions(missionId: string) {
   const page = await apiClient.get<PageResponse<MissionPositionResponse>>(
-    `/api/missions/${missionId}/positions`,
+    `/api/missions/${missionId}/positions${query}`,
   )
   return page.content
 }
@@ -66,8 +111,9 @@ export function assignMissionPositionUser(
   id: string,
   assignedUserId: string | null,
 ) {
+  const body: AssignedUserRequest = { assignedUserId }
   return apiClient.post<MissionPositionResponse>(
     `/api/missions/${missionId}/positions/${id}/assigned-user`,
-    { assignedUserId },
+    body,
   )
 }

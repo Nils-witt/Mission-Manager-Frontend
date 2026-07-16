@@ -1,11 +1,30 @@
-import { apiClient } from './client'
-import type { PageResponse, QualificationTypeRequest, QualificationTypeResponse } from './types'
+import { apiClient, toQueryString } from './client'
+import type {
+  PageResponse,
+  Pageable,
+  QualificationTypeRequest,
+  QualificationTypeResponse,
+} from './types'
 
-export async function listQualificationTypes() {
+export interface ListQualificationTypesParams extends Pageable {
+  name?: string
+}
+
+export async function listQualificationTypes(params: ListQualificationTypesParams = {}) {
+  const query = toQueryString({
+    name: params.name,
+    page: params.page,
+    size: params.size,
+    sort: params.sort,
+  })
   const page = await apiClient.get<PageResponse<QualificationTypeResponse>>(
-    '/api/qualification-types',
+    `/api/qualification-types${query}`,
   )
   return page.content
+}
+
+export function getQualificationType(id: string) {
+  return apiClient.get<QualificationTypeResponse>(`/api/qualification-types/${id}`)
 }
 
 export function createQualificationType(qualificationType: QualificationTypeRequest) {

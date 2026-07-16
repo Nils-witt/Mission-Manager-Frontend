@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import Alert from '@mui/material/Alert'
 import Avatar from '@mui/material/Avatar'
@@ -8,12 +8,17 @@ import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Container from '@mui/material/Container'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
 import Divider from '@mui/material/Divider'
 import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
 import Snackbar from '@mui/material/Snackbar'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import AddIcon from '@mui/icons-material/Add'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import EditIcon from '@mui/icons-material/Edit'
 import PeopleIcon from '@mui/icons-material/People'
@@ -22,15 +27,27 @@ import BusinessIcon from '@mui/icons-material/Business'
 import EventIcon from '@mui/icons-material/Event'
 import PlaceIcon from '@mui/icons-material/Place'
 import MyLocationIcon from '@mui/icons-material/MyLocation'
+import { AttachmentList } from '../../components/AttachmentList'
+import { AttachmentPreviewDialog } from '../../components/AttachmentPreviewDialog'
+import { LogBookEntryForm } from '../../components/LogBookEntryForm'
+import type { LogBookEntryInput } from '../../components/LogBookEntryForm'
+import { useAttachmentPreview } from '../../hooks/useAttachmentPreview'
 import { ApiError, ApiUnavailableError } from '../../api/client'
 import { hasPermission } from '../../api/permissions'
 import { getMission, listMissionPositions, listMissionUsers } from '../../api/missions'
+import {
+  addLogBookEntry,
+  downloadLogBookAttachment,
+  listLogBookEntries,
+  uploadLogBookAttachment,
+} from '../../api/missionLogBook'
 import { listTenants } from '../../api/tenants'
 import type {
+  LogBookEntryResponse,
   MissionPositionResponse,
   MissionResponse,
   TenantResponse,
-  UserResponse,
+  UserMissionAssignmentResponse,
 } from '../../api/types'
 
 export function MissionDetailPage() {
@@ -43,8 +60,27 @@ export function MissionDetailPage() {
 
   const [mission, setMission] = useState<MissionResponse | null>(null)
   const [tenant, setTenant] = useState<TenantResponse | null>(null)
-  const [assignedUsers, setAssignedUsers] = useState<UserResponse[]>([])
+  const [assignedUsers, setAssignedUsers] = useState<UserMissionAssignmentResponse[]>([])
   const [positions, setPositions] = useState<MissionPositionResponse[]>([])
+  const [logEntries, setLogEntries] = useState<LogBookEntryResponse[]>([])
+  const [addEntryOpen, setAddEntryOpen] = useState(false)
+
+  const downloadAttachment = useCallback(
+    (fileId: string) => {
+      if (!id) return Promise.reject(new Error('Missing mission id'))
+      return downloadLogBookAttachment(id, fileId)
+    },
+    [id],
+  )
+  const {
+    preview,
+    previewLoading,
+    thumbnails,
+    loadThumbnails,
+    openAttachment,
+    closePreview,
+    downloadPreview,
+  } = useAttachmentPreview(downloadAttachment)
 
   const loadData = useCallback(async () => {
     if (!id) {
@@ -53,16 +89,19 @@ export function MissionDetailPage() {
       return
     }
     try {
-      const [missionData, tenantsData, usersData, positionsData] = await Promise.all([
-        getMission(id),
-        listTenants(),
-        listMissionUsers(id),
-        listMissionPositions(id),
-      ])
+      const [missionData, tenantsData, usersData, positionsData, logEntriesData] =
+        await Promise.all([
+          getMission(id),
+          listTenants(),
+          listMissionUsers(id),
+          listMissionPositions(id),
+          listLogBookEntries(id, { sort: ['createdAt,desc'] }),
+        ])
       setMission(missionData)
       setTenant(tenantsData.find((t) => t.id === missionData.tenantId) ?? null)
       setAssignedUsers(usersData)
       setPositions(positionsData)
+      setLogEntries(logEntriesData)
       setError(null)
     } catch (err) {
       setError(describeError(err))
@@ -75,6 +114,38 @@ export function MissionDetailPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData()
   }, [loadData])
+
+  const logEntryAttachments = useMemo(
+    () => logEntries.flatMap((entry) => entry.attachments),
+    [logEntries],
+  )
+
+  useEffect(() => {
+    loadThumbnails(logEntryAttachments)
+  }, [logEntryAttachments, loadThumbnails])
+
+  const handleOpenAttachment = async (fileId: string, originalFileName: string) => {
+    setError(null)
+    try {
+      await openAttachment(fileId, originalFileName)
+    } catch (err) {
+      setError(describeError(err))
+    }
+  }
+
+  const handleSubmitEntry = async ({ text, sender, recipient, files }: LogBookEntryInput) => {
+    if (!id) return
+    const uploaded = await Promise.all(
+      files.map((file) => uploadLogBookAttachment(id, file, file.name)),
+    )
+    await addLogBookEntry(id, {
+      text,
+      sender,
+      recipient,
+      attachmentIds: uploaded.map((file) => file.id),
+    })
+    await loadData()
+  }
 
   if (loading) {
     return (
@@ -175,11 +246,11 @@ export function MissionDetailPage() {
           <Typography color="text.secondary">No users assigned to this mission.</Typography>
         ) : (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            {assignedUsers.map((user) => (
+            {assignedUsers.map((assignment) => (
               <Chip
-                key={user.id}
-                label={user.username}
-                avatar={<Avatar>{user.username.charAt(0).toUpperCase()}</Avatar>}
+                key={assignment.id}
+                label={assignment.username}
+                avatar={<Avatar>{assignment.username.charAt(0).toUpperCase()}</Avatar>}
               />
             ))}
           </Box>
@@ -216,7 +287,70 @@ export function MissionDetailPage() {
             ))}
           </Box>
         )}
+
+        <Divider sx={{ my: 3 }} />
+
+        <Stack
+          direction="row"
+          sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}
+        >
+          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+            Log book
+          </Typography>
+          <Button size="small" startIcon={<AddIcon />} onClick={() => setAddEntryOpen(true)}>
+            Add entry
+          </Button>
+        </Stack>
+        {logEntries.length === 0 ? (
+          <Typography color="text.secondary">No log book entries yet.</Typography>
+        ) : (
+          <Stack spacing={1}>
+            {logEntries.map((entry) => (
+              <Box key={entry.id}>
+                <Typography variant="body2" noWrap>
+                  <strong>
+                    {entry.sender || '—'} → {entry.recipient || '—'}:
+                  </strong>{' '}
+                  {entry.text}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatDateTime(entry.createdAt)}
+                </Typography>
+                {entry.attachments.length > 0 && (
+                  <Box sx={{ mt: 1 }}>
+                    <AttachmentList
+                      attachments={entry.attachments}
+                      thumbnails={thumbnails}
+                      onOpen={handleOpenAttachment}
+                      disabled={previewLoading}
+                    />
+                  </Box>
+                )}
+              </Box>
+            ))}
+          </Stack>
+        )}
       </Paper>
+
+      <AttachmentPreviewDialog
+        preview={preview}
+        onClose={closePreview}
+        onDownload={downloadPreview}
+      />
+
+      <Dialog open={addEntryOpen} onClose={() => setAddEntryOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>New log book entry</DialogTitle>
+        <DialogContent>
+          <LogBookEntryForm
+            onSubmit={handleSubmitEntry}
+            onError={(err) => setError(describeError(err))}
+            onSuccess={() => setAddEntryOpen(false)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddEntryOpen(false)}>Cancel</Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar open={error !== null} autoHideDuration={6000} onClose={() => setError(null)}>
         <Alert severity="error" onClose={() => setError(null)} sx={{ width: '100%' }}>

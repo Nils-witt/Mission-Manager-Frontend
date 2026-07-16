@@ -1,7 +1,7 @@
 import { apiClient } from './client'
 import { clearSession, setSession } from './authStore'
 import { getCurrentUser } from './users'
-import type { TokenResponse } from './types'
+import type { TokenResponse, TokenValidationResponse } from './types'
 
 export async function login(username: string, password: string): Promise<TokenResponse> {
   const response = await apiClient.post<TokenResponse>('/api/token', { username, password })
@@ -14,4 +14,8 @@ export async function login(username: string, password: string): Promise<TokenRe
     throw err
   }
   return response
+}
+
+export function validateToken() {
+  return apiClient.get<TokenValidationResponse>('/api/token/validate')
 }

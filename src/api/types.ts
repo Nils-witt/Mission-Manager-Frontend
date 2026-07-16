@@ -12,6 +12,7 @@ export interface UserResponse {
   tenantIds: string[]
   securityGroupIds: string[]
   permissions: Permission[]
+  roles: SecurityRole[]
 }
 
 export interface UserRequest {
@@ -19,10 +20,10 @@ export interface UserRequest {
   firstName: string
   lastName: string
   email: string
+  password?: string
   enabled: boolean
   locked: boolean
   primaryTenantId: string | null
-  tenantIds: string[]
   securityGroupIds: string[]
 }
 
@@ -46,6 +47,12 @@ export interface PageResponse<T> {
   size: number
   totalElements: number
   totalPages: number
+}
+
+export interface Pageable {
+  page?: number
+  size?: number
+  sort?: string[]
 }
 
 export interface MissionResponse {
@@ -90,6 +97,28 @@ export interface MissionPositionRequest {
   assignedUserId: string | null
 }
 
+export interface AssignedUserRequest {
+  assignedUserId: string | null
+}
+
+export interface UserMissionAssignmentResponse {
+  id: string
+  createdAt: string
+  updatedAt: string
+  missionId: string
+  userId: string
+  username: string
+  startTime: string | null
+  endTime: string | null
+  permissions: Permission[]
+}
+
+export interface UserMissionAssignmentRequest {
+  userId: string
+  startTime: string | null
+  endTime: string | null
+}
+
 export interface QualificationResponse {
   id: string
   createdAt: string
@@ -119,6 +148,21 @@ export interface QualificationTypeRequest {
   name: string
 }
 
+export interface UserQualificationResponse {
+  id: string
+  createdAt: string
+  updatedAt: string
+  userId: string
+  qualificationId: string
+  qualificationName: string
+  since: string | null
+  expiry: string | null
+  active: boolean
+  expired: boolean
+  hasCertificate: boolean
+  permissions: Permission[]
+}
+
 export type SecurityRoleType =
   | 'MAPOVERLAY'
   | 'MAPBASELAYER'
@@ -137,6 +181,7 @@ export type SecurityRoleType =
   | 'EMAIL'
   | 'QUALIFICATION'
   | 'POSITION'
+  | 'TENANT'
 
 export type SecurityRoleScope = Permission
 
@@ -171,4 +216,63 @@ export interface LoginRequest {
 export interface TokenResponse {
   token: string
   expiresAt: string
+}
+
+export interface TokenValidationResponse {
+  valid: boolean
+  userId: string | null
+  username: string | null
+}
+
+export type AuditLogChangeType = 'CREATED' | 'UPDATED' | 'DELETED' | 'RETRANSMIT'
+
+export interface FieldChange {
+  field: string
+  oldValue: string | null
+  newValue: string | null
+}
+
+export interface AuditLogResponse {
+  id: string
+  entityName: string
+  entityId: string
+  changeType: AuditLogChangeType
+  changedBy: string
+  changedAt: string
+  changes: FieldChange[]
+  permissions: Permission[]
+}
+
+export interface StoredFileResponse {
+  id: string
+  createdAt: string
+  name: string
+  originalFileName: string
+}
+
+export interface LogBookEntryResponse {
+  id: string
+  createdAt: string
+  updatedAt: string
+  missionId: string
+  text: string
+  sender: string
+  recipient: string
+  author: string
+  attachments: StoredFileResponse[]
+  permissions: Permission[]
+}
+
+export interface LogBookEntryRequest {
+  text: string
+  sender: string
+  recipient: string
+  attachmentIds: string[]
+}
+
+export interface EmailRequest {
+  recipientType: 'USER' | 'TENANT' | 'GROUP'
+  recipientId: string
+  subject: string
+  body: string
 }

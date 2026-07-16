@@ -19,25 +19,20 @@ import Alert from '@mui/material/Alert'
 import Snackbar from '@mui/material/Snackbar'
 import type { SelectChangeEvent } from '@mui/material/Select'
 import { ApiError, ApiUnavailableError } from '../../api/client'
-import { createUser, listUsers, updateUser } from '../../api/users'
+import { createUser, getUser, updateUser } from '../../api/users'
 import { listTenants } from '../../api/tenants'
 import { listSecurityGroups } from '../../api/securityGroups'
-import type {
-  SecurityGroupResponse,
-  TenantResponse,
-  UserRequest,
-  UserResponse,
-} from '../../api/types'
+import type { SecurityGroupResponse, TenantResponse, UserRequest } from '../../api/types'
 
 const emptyForm: UserRequest = {
   username: '',
   firstName: '',
   lastName: '',
   email: '',
+  password: '',
   enabled: true,
   locked: false,
   primaryTenantId: null,
-  tenantIds: [],
   securityGroupIds: [],
 }
 
@@ -59,14 +54,13 @@ function UserFormPage() {
 
     async function loadData() {
       try {
-        const [usersData, tenantsData] = await Promise.all([
-          isEditing ? listUsers() : Promise.resolve<UserResponse[]>([]),
+        const [user, tenantsData] = await Promise.all([
+          isEditing && id ? getUser(id) : Promise.resolve(null),
           listTenants(),
         ])
         if (!active) return
         setTenants(tenantsData)
         if (isEditing) {
-          const user = usersData.find((u) => u.id === id)
           if (!user) {
             setNotFound(true)
           } else {
@@ -75,10 +69,10 @@ function UserFormPage() {
               firstName: user.firstName,
               lastName: user.lastName,
               email: user.email,
+              password: '',
               enabled: user.enabled,
               locked: user.locked,
               primaryTenantId: user.primaryTenantId,
-              tenantIds: user.tenantIds,
               securityGroupIds: user.securityGroupIds,
             })
           }
@@ -101,23 +95,18 @@ function UserFormPage() {
     let active = true
 
     async function loadSecurityGroups() {
-      if (form.tenantIds.length === 0) {
+      if (!form.primaryTenantId) {
         setSecurityGroups([])
         return
       }
       try {
-        const groupsByTenant = await Promise.all(
-          form.tenantIds.map((tenantId) => listSecurityGroups(tenantId)),
-        )
+        const groups = await listSecurityGroups(form.primaryTenantId)
         if (!active) return
-        const merged = new Map<string, SecurityGroupResponse>()
-        for (const groups of groupsByTenant) {
-          for (const group of groups) merged.set(group.id, group)
-        }
-        setSecurityGroups(Array.from(merged.values()))
+        setSecurityGroups(groups)
+        const groupIds = new Set(groups.map((group) => group.id))
         setForm((prev) => ({
           ...prev,
-          securityGroupIds: prev.securityGroupIds.filter((groupId) => merged.has(groupId)),
+          securityGroupIds: prev.securityGroupIds.filter((groupId) => groupIds.has(groupId)),
         }))
       } catch (err) {
         if (active) setError(describeError(err))
@@ -128,20 +117,7 @@ function UserFormPage() {
     return () => {
       active = false
     }
-  }, [form.tenantIds])
-
-  const handleTenantIdsChange = (event: SelectChangeEvent<string[]>) => {
-    const value = event.target.value
-    const tenantIds = typeof value === 'string' ? value.split(',') : value
-    setForm((prev) => ({
-      ...prev,
-      tenantIds,
-      primaryTenantId:
-        prev.primaryTenantId && tenantIds.includes(prev.primaryTenantId)
-          ? prev.primaryTenantId
-          : null,
-    }))
-  }
+  }, [form.primaryTenantId])
 
   const handleSecurityGroupChange = (event: SelectChangeEvent<string[]>) => {
     const value = event.target.value
@@ -155,6 +131,9 @@ function UserFormPage() {
     setSubmitting(true)
     setError(null)
     const payload: UserRequest = { ...form }
+    if (!payload.password) {
+      delete payload.password
+    }
     try {
       if (isEditing && id) {
         await updateUser(id, payload)
@@ -226,33 +205,15 @@ function UserFormPage() {
             fullWidth
             required
           />
-          <FormControl fullWidth>
-            <InputLabel id="tenants-label">Tenants</InputLabel>
-            <Select
-              labelId="tenants-label"
-              label="Tenants"
-              multiple
-              value={form.tenantIds}
-              onChange={handleTenantIdsChange}
-              renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selected.map((tenantId) => (
-                    <Chip
-                      key={tenantId}
-                      label={tenants.find((tenant) => tenant.id === tenantId)?.name ?? tenantId}
-                      size="small"
-                    />
-                  ))}
-                </Box>
-              )}
-            >
-              {tenants.map((tenant) => (
-                <MenuItem key={tenant.id} value={tenant.id}>
-                  {tenant.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <TextField
+            label="Password"
+            type="password"
+            value={form.password}
+            onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+            fullWidth
+            required={!isEditing}
+            helperText={isEditing ? 'Leave blank to keep the current password.' : undefined}
+          />
           <FormControl fullWidth>
             <InputLabel id="primary-tenant-label">Primary tenant</InputLabel>
             <Select
@@ -262,18 +223,15 @@ function UserFormPage() {
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, primaryTenantId: e.target.value || null }))
               }
-              disabled={form.tenantIds.length === 0}
             >
               <MenuItem value="">
                 <em>None</em>
               </MenuItem>
-              {tenants
-                .filter((tenant) => form.tenantIds.includes(tenant.id))
-                .map((tenant) => (
-                  <MenuItem key={tenant.id} value={tenant.id}>
-                    {tenant.name}
-                  </MenuItem>
-                ))}
+              {tenants.map((tenant) => (
+                <MenuItem key={tenant.id} value={tenant.id}>
+                  {tenant.name}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
           <FormControl fullWidth>
@@ -284,6 +242,7 @@ function UserFormPage() {
               multiple
               value={form.securityGroupIds}
               onChange={handleSecurityGroupChange}
+              disabled={!form.primaryTenantId}
               renderValue={(selected) => (
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                   {selected.map((groupId) => (
@@ -331,7 +290,12 @@ function UserFormPage() {
           <Button
             onClick={handleSubmit}
             variant="contained"
-            disabled={submitting || !form.username || !form.email}
+            disabled={
+              submitting ||
+              !form.username ||
+              !form.email ||
+              (!isEditing && !form.password)
+            }
           >
             {isEditing ? 'Save' : 'Create'}
           </Button>

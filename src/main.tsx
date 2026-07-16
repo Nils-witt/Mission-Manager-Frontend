@@ -1,8 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import CssBaseline from '@mui/material/CssBaseline'
 import './index.css'
+import { ColorModeProvider } from './theme/ColorModeProvider.tsx'
 import Layout from './Layout.tsx'
 import RequireAuth from './RequireAuth.tsx'
 import App from './App.tsx'
@@ -25,189 +25,190 @@ import QualificationTypeFormPage from './pages/qualifications/QualificationTypeF
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <CssBaseline />
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route element={<Layout />}>
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <App />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              <RequireAuth>
-                <UsersPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/users/new"
-            element={
-              <RequireAuth>
-                <UserFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/users/:id/edit"
-            element={
-              <RequireAuth>
-                <UserFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/tenants"
-            element={
-              <RequireAuth>
-                <TenantsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/tenants/new"
-            element={
-              <RequireAuth>
-                <TenantFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/tenants/:id/edit"
-            element={
-              <RequireAuth>
-                <TenantFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/tenants/:tenantId/security-groups"
-            element={
-              <RequireAuth>
-                <SecurityGroupsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/tenants/:tenantId/security-groups/new"
-            element={
-              <RequireAuth>
-                <SecurityGroupFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/tenants/:tenantId/security-groups/:id/edit"
-            element={
-              <RequireAuth>
-                <SecurityGroupFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/missions"
-            element={
-              <RequireAuth>
-                <MissionsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/missions/new"
-            element={
-              <RequireAuth>
-                <MissionFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/missions/:id"
-            element={
-              <RequireAuth>
-                <MissionDetailPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/missions/:id/edit"
-            element={
-              <RequireAuth>
-                <MissionFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/missions/:id/users"
-            element={
-              <RequireAuth>
-                <MissionUsersPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/missions/:id/positions"
-            element={
-              <RequireAuth>
-                <MissionPositionsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/qualifications"
-            element={
-              <RequireAuth>
-                <QualificationsPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/qualifications/new"
-            element={
-              <RequireAuth>
-                <QualificationFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/qualifications/:id/edit"
-            element={
-              <RequireAuth>
-                <QualificationFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/qualification-types"
-            element={
-              <RequireAuth>
-                <QualificationTypesPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/qualification-types/new"
-            element={
-              <RequireAuth>
-                <QualificationTypeFormPage />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/qualification-types/:id/edit"
-            element={
-              <RequireAuth>
-                <QualificationTypeFormPage />
-              </RequireAuth>
-            }
-          />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ColorModeProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route element={<Layout />}>
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <App />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                <RequireAuth>
+                  <UsersPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/users/new"
+              element={
+                <RequireAuth>
+                  <UserFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/users/:id/edit"
+              element={
+                <RequireAuth>
+                  <UserFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/tenants"
+              element={
+                <RequireAuth>
+                  <TenantsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/tenants/new"
+              element={
+                <RequireAuth>
+                  <TenantFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/tenants/:id/edit"
+              element={
+                <RequireAuth>
+                  <TenantFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/tenants/:tenantId/security-groups"
+              element={
+                <RequireAuth>
+                  <SecurityGroupsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/tenants/:tenantId/security-groups/new"
+              element={
+                <RequireAuth>
+                  <SecurityGroupFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/tenants/:tenantId/security-groups/:id/edit"
+              element={
+                <RequireAuth>
+                  <SecurityGroupFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/missions"
+              element={
+                <RequireAuth>
+                  <MissionsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/missions/new"
+              element={
+                <RequireAuth>
+                  <MissionFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/missions/:id"
+              element={
+                <RequireAuth>
+                  <MissionDetailPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/missions/:id/edit"
+              element={
+                <RequireAuth>
+                  <MissionFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/missions/:id/users"
+              element={
+                <RequireAuth>
+                  <MissionUsersPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/missions/:id/positions"
+              element={
+                <RequireAuth>
+                  <MissionPositionsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/qualifications"
+              element={
+                <RequireAuth>
+                  <QualificationsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/qualifications/new"
+              element={
+                <RequireAuth>
+                  <QualificationFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/qualifications/:id/edit"
+              element={
+                <RequireAuth>
+                  <QualificationFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/qualification-types"
+              element={
+                <RequireAuth>
+                  <QualificationTypesPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/qualification-types/new"
+              element={
+                <RequireAuth>
+                  <QualificationTypeFormPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/qualification-types/:id/edit"
+              element={
+                <RequireAuth>
+                  <QualificationTypeFormPage />
+                </RequireAuth>
+              }
+            />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ColorModeProvider>
   </StrictMode>,
 )

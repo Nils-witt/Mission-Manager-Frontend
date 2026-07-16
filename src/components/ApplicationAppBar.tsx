@@ -12,9 +12,12 @@ import Button from '@mui/material/Button'
 import Tooltip from '@mui/material/Tooltip'
 import MenuItem from '@mui/material/MenuItem'
 import AdbIcon from '@mui/icons-material/Adb'
+import DarkModeIcon from '@mui/icons-material/DarkMode'
+import LightModeIcon from '@mui/icons-material/LightMode'
 import SearchIcon from '@mui/icons-material/Search'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../api/useAuth'
+import { useColorMode } from '../theme/ColorModeContext'
 import SearchDialog from './SearchDialog'
 
 export type AppBarPage = {
@@ -36,6 +39,7 @@ export interface AppBarNamedAction {
 function ApplicationAppBar(props: ApplicationAppBarProps) {
   const { displayName } = useAuth()
   const navigate = useNavigate()
+  const { mode, toggleColorMode } = useColorMode()
 
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null)
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null)
@@ -149,6 +153,11 @@ function ApplicationAppBar(props: ApplicationAppBarProps) {
             ))}
           </Box>
           <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+              <IconButton onClick={toggleColorMode} color="inherit">
+                {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Search">
               <IconButton onClick={() => setSearchOpen(true)} color="inherit">
                 <SearchIcon />

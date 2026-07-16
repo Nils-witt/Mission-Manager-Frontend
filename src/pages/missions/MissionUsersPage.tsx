@@ -27,14 +27,14 @@ import {
   unassignMissionUser,
 } from '../../api/missions'
 import { listUsers } from '../../api/users'
-import type { MissionResponse, UserResponse } from '../../api/types'
+import type { MissionResponse, UserMissionAssignmentResponse, UserResponse } from '../../api/types'
 
 function MissionUsersPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
   const [mission, setMission] = useState<MissionResponse | null>(null)
-  const [assignedUsers, setAssignedUsers] = useState<UserResponse[]>([])
+  const [assignedUsers, setAssignedUsers] = useState<UserMissionAssignmentResponse[]>([])
   const [allUsers, setAllUsers] = useState<UserResponse[]>([])
   const [selectedUserId, setSelectedUserId] = useState('')
   const [loading, setLoading] = useState(true)
@@ -73,7 +73,7 @@ function MissionUsersPage() {
   }, [loadData])
 
   const unassignedUsers = allUsers.filter(
-    (user) => !assignedUsers.some((assigned) => assigned.id === user.id),
+    (user) => !assignedUsers.some((assigned) => assigned.userId === user.id),
   )
 
   const handleAssign = async () => {
@@ -81,7 +81,11 @@ function MissionUsersPage() {
     setSubmitting(true)
     setError(null)
     try {
-      await assignMissionUser(id, selectedUserId)
+      await assignMissionUser(id, {
+        userId: selectedUserId,
+        startTime: new Date().toISOString(),
+        endTime: null,
+      })
       setSelectedUserId('')
       await loadData()
     } catch (err) {
@@ -91,12 +95,12 @@ function MissionUsersPage() {
     }
   }
 
-  const handleUnassign = async (userId: string) => {
+  const handleUnassign = async (assignmentId: string) => {
     if (!id) return
     setSubmitting(true)
     setError(null)
     try {
-      await unassignMissionUser(id, userId)
+      await unassignMissionUser(id, assignmentId)
       await loadData()
     } catch (err) {
       setError(describeError(err))
@@ -166,25 +170,28 @@ function MissionUsersPage() {
         </Stack>
 
         <List>
-          {assignedUsers.map((user) => (
-            <ListItem
-              key={user.id}
-              secondaryAction={
-                <IconButton
-                  aria-label="unassign"
-                  onClick={() => handleUnassign(user.id)}
-                  disabled={submitting}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              }
-            >
-              <ListItemText
-                primary={user.username}
-                secondary={`${user.firstName} ${user.lastName}`.trim()}
-              />
-            </ListItem>
-          ))}
+          {assignedUsers.map((assignment) => {
+            const user = allUsers.find((u) => u.id === assignment.userId)
+            return (
+              <ListItem
+                key={assignment.id}
+                secondaryAction={
+                  <IconButton
+                    aria-label="unassign"
+                    onClick={() => handleUnassign(assignment.id)}
+                    disabled={submitting}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                }
+              >
+                <ListItemText
+                  primary={assignment.username}
+                  secondary={user ? `${user.firstName} ${user.lastName}`.trim() : undefined}
+                />
+              </ListItem>
+            )
+          })}
           {assignedUsers.length === 0 && (
             <Typography color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
               No users assigned to this mission.

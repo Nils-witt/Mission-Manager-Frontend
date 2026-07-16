@@ -1,9 +1,29 @@
-import { apiClient } from './client'
-import type { PageResponse, UserRequest, UserResponse } from './types'
+import { apiClient, toQueryString } from './client'
+import type { PageResponse, Pageable, UserRequest, UserResponse } from './types'
 
-export async function listUsers() {
-  const page = await apiClient.get<PageResponse<UserResponse>>('/api/users')
+export interface ListUsersParams extends Pageable {
+  search?: string
+  enabled?: boolean
+  locked?: boolean
+  tenantId?: string
+}
+
+export async function listUsers(params: ListUsersParams = {}) {
+  const query = toQueryString({
+    search: params.search,
+    enabled: params.enabled,
+    locked: params.locked,
+    tenantId: params.tenantId,
+    page: params.page,
+    size: params.size,
+    sort: params.sort,
+  })
+  const page = await apiClient.get<PageResponse<UserResponse>>(`/api/users${query}`)
   return page.content
+}
+
+export function getUser(id: string) {
+  return apiClient.get<UserResponse>(`/api/users/${id}`)
 }
 
 export function getCurrentUser() {
