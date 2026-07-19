@@ -23,8 +23,26 @@ export function addLogBookEntry(missionId: string, entry: LogBookEntryRequest) {
   return apiClient.post<LogBookEntryResponse>(`/api/missions/${missionId}/logbook`, entry)
 }
 
-export function uploadLogBookAttachment(missionId: string, file: File, name?: string) {
-  const query = toQueryString({ name })
+export interface UploadLogBookAttachmentLocation {
+  latitude?: number | null
+  longitude?: number | null
+  height?: number | null
+  locationName?: string | null
+}
+
+export function uploadLogBookAttachment(
+  missionId: string,
+  file: File,
+  name?: string,
+  location?: UploadLogBookAttachmentLocation,
+) {
+  const query = toQueryString({
+    name,
+    latitude: location?.latitude,
+    longitude: location?.longitude,
+    height: location?.height,
+    locationName: location?.locationName,
+  })
   const formData = new FormData()
   formData.set('file', file)
   return apiClient.postForm<StoredFileResponse>(

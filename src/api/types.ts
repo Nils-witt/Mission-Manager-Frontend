@@ -243,11 +243,19 @@ export interface AuditLogResponse {
   permissions: Permission[]
 }
 
+export interface EmbeddableLocation {
+  latitude: number | null
+  longitude: number | null
+  height: number | null
+  locationName: string | null
+}
+
 export interface StoredFileResponse {
   id: string
   createdAt: string
   name: string
   originalFileName: string
+  location: EmbeddableLocation | null
 }
 
 export interface LogBookEntryResponse {
@@ -259,6 +267,7 @@ export interface LogBookEntryResponse {
   sender: string
   recipient: string
   author: string
+  location: EmbeddableLocation | null
   attachments: StoredFileResponse[]
   permissions: Permission[]
 }
@@ -268,6 +277,7 @@ export interface LogBookEntryRequest {
   sender: string
   recipient: string
   attachmentIds: string[]
+  location: EmbeddableLocation | null
 }
 
 export interface EmailRequest {
@@ -275,4 +285,23 @@ export interface EmailRequest {
   recipientId: string
   subject: string
   body: string
+}
+
+export type NotificationDeviceType = 'ANDROID' | 'IOS' | 'WEB'
+
+export interface NotificationDestinationResponse {
+  id: string
+  createdAt: string
+  updatedAt: string
+  userId: string
+  deviceType: NotificationDeviceType
+  token: string
+  name: string
+  permissions: Permission[]
+}
+
+export interface NotificationDestinationRequest {
+  deviceType: NotificationDeviceType
+  token: string
+  name: string
 }

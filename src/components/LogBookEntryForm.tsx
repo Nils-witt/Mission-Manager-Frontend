@@ -1,18 +1,31 @@
 import { useRef, useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Chip from '@mui/material/Chip'
+import Collapse from '@mui/material/Collapse'
+import IconButton from '@mui/material/IconButton'
+import Paper from '@mui/material/Paper'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
+import Tooltip from '@mui/material/Tooltip'
+import Typography from '@mui/material/Typography'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import CloseIcon from '@mui/icons-material/Close'
+import PlaceIcon from '@mui/icons-material/Place'
 import SendIcon from '@mui/icons-material/Send'
+import { emptyLocation, locationHasValue, type LocationValue } from '../api/location'
+import { LocationFields } from './LocationFields'
+
+export interface LogBookAttachmentInput {
+  file: File
+  location: LocationValue
+}
 
 export interface LogBookEntryInput {
   text: string
   sender: string
   recipient: string
-  files: File[]
+  location: LocationValue
+  attachments: LogBookAttachmentInput[]
 }
 
 interface LogBookEntryFormProps {
@@ -26,17 +39,29 @@ export function LogBookEntryForm({ onSubmit, onError, onSuccess }: LogBookEntryF
   const [sender, setSender] = useState('')
   const [recipient, setRecipient] = useState('')
   const [text, setText] = useState('')
-  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [location, setLocation] = useState<LocationValue>(emptyLocation)
+  const [pendingAttachments, setPendingAttachments] = useState<LogBookAttachmentInput[]>([])
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const handleFilesSelected = (files: FileList | null) => {
     if (!files) return
-    setPendingFiles((prev) => [...prev, ...Array.from(files)])
+    setPendingAttachments((prev) => [
+      ...prev,
+      ...Array.from(files).map((file) => ({ file, location: emptyLocation })),
+    ])
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleRemovePendingFile = (index: number) => {
-    setPendingFiles((prev) => prev.filter((_, i) => i !== index))
+    setPendingAttachments((prev) => prev.filter((_, i) => i !== index))
+    setExpandedIndex((prev) => (prev === index ? null : prev))
+  }
+
+  const handleAttachmentLocationChange = (index: number, value: LocationValue) => {
+    setPendingAttachments((prev) =>
+      prev.map((attachment, i) => (i === index ? { ...attachment, location: value } : attachment)),
+    )
   }
 
   const handleSubmit = async () => {
@@ -47,12 +72,15 @@ export function LogBookEntryForm({ onSubmit, onError, onSuccess }: LogBookEntryF
         text: text.trim(),
         sender: sender.trim(),
         recipient: recipient.trim(),
-        files: pendingFiles,
+        location,
+        attachments: pendingAttachments,
       })
       setSender('')
       setRecipient('')
       setText('')
-      setPendingFiles([])
+      setLocation(emptyLocation)
+      setPendingAttachments([])
+      setExpandedIndex(null)
       onSuccess?.()
     } catch (err) {
       onError(err)
@@ -85,30 +113,70 @@ export function LogBookEntryForm({ onSubmit, onError, onSuccess }: LogBookEntryF
         minRows={3}
         fullWidth
       />
-      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, alignItems: 'center' }}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          hidden
-          onChange={(e) => handleFilesSelected(e.target.files)}
-        />
-        <Button
-          variant="outlined"
-          startIcon={<AttachFileIcon />}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          Attach files
-        </Button>
-        {pendingFiles.map((file, index) => (
-          <Chip
-            key={`${file.name}-${index}`}
-            label={file.name}
-            onDelete={() => handleRemovePendingFile(index)}
-            deleteIcon={<CloseIcon />}
+
+      <Box>
+        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.5 }}>
+          Location
+        </Typography>
+        <LocationFields value={location} onChange={setLocation} />
+      </Box>
+
+      <Box>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            hidden
+            onChange={(e) => handleFilesSelected(e.target.files)}
           />
-        ))}
-      </Stack>
+          <Button
+            variant="outlined"
+            startIcon={<AttachFileIcon />}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Attach files
+          </Button>
+        </Stack>
+        {pendingAttachments.length > 0 && (
+          <Stack spacing={1}>
+            {pendingAttachments.map((attachment, index) => (
+              <Paper key={`${attachment.file.name}-${index}`} variant="outlined" sx={{ p: 1 }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <AttachFileIcon fontSize="small" color="action" />
+                  <Typography variant="body2" sx={{ flexGrow: 1 }} noWrap>
+                    {attachment.file.name}
+                  </Typography>
+                  <Tooltip title="Set attachment location">
+                    <IconButton
+                      size="small"
+                      onClick={() => setExpandedIndex((prev) => (prev === index ? null : index))}
+                    >
+                      <PlaceIcon
+                        fontSize="small"
+                        color={locationHasValue(attachment.location) ? 'primary' : 'inherit'}
+                      />
+                    </IconButton>
+                  </Tooltip>
+                  <IconButton size="small" onClick={() => handleRemovePendingFile(index)}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+                <Collapse in={expandedIndex === index}>
+                  <Box sx={{ mt: 1, pl: 4 }}>
+                    <LocationFields
+                      value={attachment.location}
+                      onChange={(value) => handleAttachmentLocationChange(index, value)}
+                      compact
+                    />
+                  </Box>
+                </Collapse>
+              </Paper>
+            ))}
+          </Stack>
+        )}
+      </Box>
+
       <Box>
         <Button
           variant="contained"

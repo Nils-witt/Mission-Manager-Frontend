@@ -31,6 +31,7 @@ import { AttachmentList } from '../../components/AttachmentList'
 import { AttachmentPreviewDialog } from '../../components/AttachmentPreviewDialog'
 import { LogBookEntryForm } from '../../components/LogBookEntryForm'
 import type { LogBookEntryInput } from '../../components/LogBookEntryForm'
+import { formatLocation, toEmbeddableLocation } from '../../api/location'
 import { useAttachmentPreview } from '../../hooks/useAttachmentPreview'
 import { ApiError, ApiUnavailableError } from '../../api/client'
 import { hasPermission } from '../../api/permissions'
@@ -133,16 +134,25 @@ export function MissionDetailPage() {
     }
   }
 
-  const handleSubmitEntry = async ({ text, sender, recipient, files }: LogBookEntryInput) => {
+  const handleSubmitEntry = async ({
+    text,
+    sender,
+    recipient,
+    location,
+    attachments,
+  }: LogBookEntryInput) => {
     if (!id) return
     const uploaded = await Promise.all(
-      files.map((file) => uploadLogBookAttachment(id, file, file.name)),
+      attachments.map(({ file, location: attachmentLocation }) =>
+        uploadLogBookAttachment(id, file, file.name, toEmbeddableLocation(attachmentLocation) ?? undefined),
+      ),
     )
     await addLogBookEntry(id, {
       text,
       sender,
       recipient,
       attachmentIds: uploaded.map((file) => file.id),
+      location: toEmbeddableLocation(location),
     })
     await loadData()
   }
@@ -315,6 +325,7 @@ export function MissionDetailPage() {
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   {formatDateTime(entry.createdAt)}
+                  {formatLocation(entry.location) && ` · ${formatLocation(entry.location)}`}
                 </Typography>
                 {entry.attachments.length > 0 && (
                   <Box sx={{ mt: 1 }}>
