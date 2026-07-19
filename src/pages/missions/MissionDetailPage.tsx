@@ -33,6 +33,7 @@ import { LogBookEntryForm } from '../../components/LogBookEntryForm'
 import type { LogBookEntryInput } from '../../components/LogBookEntryForm'
 import { formatLocation, toEmbeddableLocation } from '../../api/location'
 import { useAttachmentPreview } from '../../hooks/useAttachmentPreview'
+import { useMissionLiveUpdates } from '../../hooks/useMissionLiveUpdates'
 import { ApiError, ApiUnavailableError } from '../../api/client'
 import { hasPermission } from '../../api/permissions'
 import { getMission, listMissionPositions, listMissionUsers } from '../../api/missions'
@@ -115,6 +116,8 @@ export function MissionDetailPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData()
   }, [loadData])
+
+  useMissionLiveUpdates(id, loadData)
 
   const logEntryAttachments = useMemo(
     () => logEntries.flatMap((entry) => entry.attachments),
